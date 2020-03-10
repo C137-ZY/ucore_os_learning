@@ -3,5 +3,5 @@
 解压mooc-os-2015.vdi.xz到C盘的vms目录下即： C:\vms\mooc-os-2015.vdi 在VirtualBox中创建新虚拟机（设置64位Linux系统，指定配置刚解压的这个虚拟硬盘mooc-os-2015.vdi），就可以启动并运行已经配置好相关工具的Linux实验环境了。  
 实验内容位于ucore_lab目录下。（可以通过如下命令获得整个实验的代码和文档： $ git clone https://github.com/chyyuu/ucore_lab.git）。 
 
-PS:windows系统可能会有无法在虚拟机中选择64位Linux的情况，要注意win10系统是否自带的虚拟机Hyper-V和BIOS中VT是否开启。  
+PS:windows系统可能会有无法在虚拟机中选择64位Linux的情况，要注意win10系统中是否自带的虚拟机Hyper-V和BIOS中VT是否开启。  
 
