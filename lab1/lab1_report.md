@@ -161,16 +161,14 @@ buf[511] = 0xAA;   //把第511个字节赋值为0xAA
 
 
 
-## [练习2]
+## 练习二
 
-[练习2.1] 从 CPU 加电后执行的第一条指令开始,单步跟踪 BIOS 的执行。
+一、从 CPU 加电后执行的第一条指令开始,单步跟踪 BIOS 的执行。
 
-练习2可以单步跟踪，方法如下：
- 
 1 修改 lab1/tools/gdbinit,内容为:
 ```
-set architecture i8086
-target remote :1234
+set architecture i8086  //设置当前调试的CPU是8086
+target remote :1234     //gdb接连qemu虚拟机
 ```
 
 2 在 lab1目录下，执行
@@ -180,7 +178,7 @@ make debug
 
 3 在看到gdb的调试界面(gdb)后，在gdb调试界面下执行如下命令
 ```
-si
+si 
 ```
 即可单步跟踪BIOS了。
 
@@ -189,33 +187,32 @@ si
  x /2i $pc  //显示当前eip处的汇编指令
 ```
 
-> [进一步的补充]
+> 拓展
 
 ```
 改写Makefile文件
 	debug: $(UCOREIMG)
-		$(V)$(TERMINAL) -e "$(QEMU) -S -s -d in_asm -D $(BINDIR)/q.log -parallel stdio -hda $< -serial null"
-		$(V)sleep 2
-		$(V)$(TERMINAL) -e "gdb -q -tui -x tools/gdbinit"
+	       $(V)$(TERMINAL) -e "$(QEMU) -S -s -d in_asm -D $(BINDIR)/q.log -parallel stdio -hda $< -serial null"
+	       $(V)sleep 2
+	       $(V)$(TERMINAL) -e "gdb -q -tui -x tools/gdbinit"
 ```
 
 在调用qemu时增加`-d in_asm -D q.log`参数，便可以将运行的汇编指令保存在q.log中。
 为防止qemu在gdb连接后立即开始执行，删除了`tools/gdbinit`中的`continue`行。
 
-[练习2.2] 在初始化位置0x7c00 设置实地址断点,测试断点正常。
+二、在初始化位置0x7c00 设置实地址断点,测试断点正常。
 
-在tools/gdbinit结尾加上
+1.在tools/gdbinit结尾加上
 
 ```
     set architecture i8086  //设置当前调试的CPU是8086
-	b *0x7c00  //在0x7c00处设置断点。此地址是bootloader入口点地址，可看boot/bootasm.S的start地址处
-	c          //continue简称，表示继续执行
-	x /2i $pc  //显示当前eip处的汇编指令
-	set architecture i386  //设置当前调试的CPU是80386
+    b *0x7c00  //在0x7c00处设置断点。此地址是bootloader入口点地址，可看boot/bootasm.S的start地址处
+    c          //continue简称，表示继续执行
+    x /5i $pc  //显示当前eip处的汇编指令
+    set architecture i386  //设置当前调试的CPU是80386
 ```
 	
-运行"make debug"便可得到
-
+2.在lab1目录下，运行make debug命令便可得到，gdb打印出 ：
 ```
 	Breakpoint 2, 0x00007c00 in ?? ()
 	=> 0x7c00:      cli    
@@ -230,125 +227,108 @@ si
 	   0x7c10:      mov    $0xd1,%al
 ```
 
-[练习2.3] 在调用qemu 时增加-d in_asm -D q.log 参数，便可以将运行的汇编指令保存在q.log 中。
+三、在调用qemu 时增加-d in_asm -D q.log 参数，便可以将运行的汇编指令保存在q.log 中。
 将执行的汇编代码与bootasm.S 和 bootblock.asm 进行比较，看看二者是否一致。
 
-在tools/gdbinit结尾加上
+1.在tools/gdbinit结尾加上:
 ```
 	b *0x7c00
 	c
 	x /10i $pc
 ```
 
-便可以在q.log中读到"call bootmain"前执行的命令
+2.使用si和 x/i $pc 指令一行一行的跟踪，将得到的反汇编代码为:
 ```
-	----------------
-	IN: 
-	0x00007c00:  cli    
-	
-	----------------
-	IN: 
-	0x00007c01:  cld    
-	0x00007c02:  xor    %ax,%ax
-	0x00007c04:  mov    %ax,%ds
-	0x00007c06:  mov    %ax,%es
-	0x00007c08:  mov    %ax,%ss
-	
-	----------------
-	IN: 
-	0x00007c0a:  in     $0x64,%al
-	
-	----------------
-	IN: 
-	0x00007c0c:  test   $0x2,%al
-	0x00007c0e:  jne    0x7c0a
-	
-	----------------
-	IN: 
-	0x00007c10:  mov    $0xd1,%al
-	0x00007c12:  out    %al,$0x64
-	0x00007c14:  in     $0x64,%al
-	0x00007c16:  test   $0x2,%al
-	0x00007c18:  jne    0x7c14
-	
-	----------------
-	IN: 
-	0x00007c1a:  mov    $0xdf,%al
-	0x00007c1c:  out    %al,$0x60
-	0x00007c1e:  lgdtw  0x7c6c
-	0x00007c23:  mov    %cr0,%eax
-	0x00007c26:  or     $0x1,%eax
-	0x00007c2a:  mov    %eax,%cr0
-	
-	----------------
-	IN: 
-	0x00007c2d:  ljmp   $0x8,$0x7c32
-	
-	----------------
-	IN: 
-	0x00007c32:  mov    $0x10,%ax
-	0x00007c36:  mov    %eax,%ds
-	
-	----------------
-	IN: 
-	0x00007c38:  mov    %eax,%es
-	
-	----------------
-	IN: 
-	0x00007c3a:  mov    %eax,%fs
-	0x00007c3c:  mov    %eax,%gs
-	0x00007c3e:  mov    %eax,%ss
-	
-	----------------
-	IN: 
-	0x00007c40:  mov    $0x0,%ebp
-	
-	----------------
-	IN: 
-	0x00007c45:  mov    $0x7c00,%esp
-	0x00007c4a:  call   0x7d0d
-	
-	----------------
-	IN: 
-	0x00007d0d:  push   %ebp
+0x00007c01 in ?? ()
+(gdb) x/i $pc
+=> 0x7c01:      cld    
+(gdb) si
+0x00007c02 in ?? ()
+(gdb) x/i $pc
+=> 0x7c02:      xor    %eax,%eax
+(gdb) si
+0x00007c04 in ?? ()
+(gdb) x/i $pc
+=> 0x7c04:      mov    %eax,%ds
+(gdb) 
 ```
 
-其与bootasm.S和bootblock.asm中的代码相同。
-
-## [练习3]
-分析bootloader 进入保护模式的过程。
-
-从`%cs=0 $pc=0x7c00`，进入后
-
-首先清理环境：包括将flag置0和将段寄存器置0
+bootasm.S的部分代码：
 ```
-	.code16
-	    cli
-	    cld
-	    xorw %ax, %ax
-	    movw %ax, %ds
-	    movw %ax, %es
-	    movw %ax, %ss
+.code16                                             # Assemble for 16-bit mode
+    cli                                             # Disable interrupts
+    cld                                             # String operations increment
+
+    # Set up the important data segment registers (DS, ES, SS).
+    xorw %ax, %ax                                   # Segment number zero
+    movw %ax, %ds                                   # -> Data Segment
+    movw %ax, %es                                   # -> Extra Segment
+    movw %ax, %ss                                   # -> Stack Segment
+
 ```
 
-开启A20：通过将键盘控制器上的A20线置于高电位，全部32条地址线可用，
-可以访问4G的内存空间。
+bootblock.asm中的部分代码：
 ```
-	seta20.1:               # 等待8042键盘控制器不忙
-	    inb $0x64, %al      # 
-	    testb $0x2, %al     #
-	    jnz seta20.1        #
+start:
+.code16                                             # Assemble for 16-bit mode
+    cli                                             # Disable interrupts
+    7c00:   fa                      cli    
+    cld                                             # String operations increment
+    7c01:   fc                      cld    
+
+    # Set up the important data segment registers (DS, ES, SS).
+    xorw %ax, %ax                                   # Segment number zero
+    7c02:   31 c0                   xor    %eax,%eax
+    movw %ax, %ds                                   # -> Data Segment
+    7c04:   8e d8                   mov    %eax,%ds
+    movw %ax, %es                                   # -> Extra Segment
+    7c06:   8e c0                   mov    %eax,%es
+    movw %ax, %ss                                   # -> Stack Segment
+    7c08:   8e d0                   mov    %eax,%ss
+
+```
+3.对比发现，反汇编指令与两个汇编文件中相对应部分代码相同。  
+
+## 练习三  
+
+一、分析bootloader 进入保护模式的过程。  
+（提示：需要阅读小节“保护模式和分段机制”和lab1/boot/bootasm.S源码，了解如何从实模式切换到保护模式，需要了解：  
+为何开启A20，以及如何开启A20  
+如何初始化GDT表  
+如何使能和进入保护模式）  
+
+1.首先清理环境：关闭中断，将各个段寄存器重置   
+
+修改控制方向标志寄存器DF=0，使得内存地址从低到高增加，并先将各个寄存器置0
+```
+.code16                            //CPU启动为16位模式                  
+	cli                        //关中断
+	cld                        //清楚方向标志位
+	xorw %ax, %ax              //置零
+	movw %ax, %ds              //-> 数据段寄存器
+	movw %ax, %es              //-> 附加段寄存器
+	movw %ax, %ss              //-> 堆栈段寄存器
+```
+
+2.开启A20：通过将键盘控制器上的A20线置于高电位，全部32条地址线可用，可以访问4G的内存空间。
+
+(1).下面的代码打开A20地址线 
+```
+seta20.1:                   // 等待8042键盘控制器不忙
+	inb $0x64, %al      // 
+	testb $0x2, %al     #
+	jnz seta20.1        #
 	
-	    movb $0xd1, %al     # 发送写8042输出端口的指令
-	    outb %al, $0x64     #
+	movb $0xd1, %al     # 发送写8042输出端口的指令
+	outb %al, $0x64     #
 	
-	seta20.1:               # 等待8042键盘控制器不忙
-	    inb $0x64, %al      # 
-	    testb $0x2, %al     #
-	    jnz seta20.1        #
+seta20.1:               # 等待8042键盘控制器不忙
+	inb $0x64, %al      # 
+	testb $0x2, %al     #
+	jnz seta20.1        #
 	
-	    movb $0xdf, %al     # 打开A20
-	    outb %al, $0x60     # 
+	movb $0xdf, %al     # 打开A20
+	 outb %al, $0x60     # 
 ```
 
 初始化GDT表：一个简单的GDT表和其描述符已经静态储存在引导区中，载入即可
