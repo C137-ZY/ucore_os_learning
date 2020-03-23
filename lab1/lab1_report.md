@@ -303,7 +303,7 @@ start:
 ```
 .code16                            //CPU启动为16位模式                  
 	cli                        //关中断
-	cld                        //清楚方向标志位
+	cld                        //清方向标志位
 	xorw %ax, %ax              //置零
 	movw %ax, %ds              //-> 数据段寄存器
 	movw %ax, %es              //-> 附加段寄存器
@@ -316,7 +316,7 @@ start:
 ```
 seta20.1:                   // 等待8042键盘控制器不忙
 	inb $0x64, %al      // 
-	testb $0x2, %al     #
+	testb $0x2, %al     //
 	jnz seta20.1        #
 	
 	movb $0xd1, %al     # 发送写8042输出端口的指令
