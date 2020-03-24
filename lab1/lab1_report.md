@@ -4,7 +4,7 @@
 
 一、操作系统镜像文件 ucore.img 是如何一步一步生成的?(需要比较详细地解释 Makefile 中
 每一条相关命令和命令参数的含义,以及说明命令导致的结果)
-
+1.
 ```
 bin/ucore.img
 | 生成ucore.img的相关代码为
@@ -143,19 +143,19 @@ bin/ucore.img
 
 二、 一个被系统认为是符合规范的硬盘主引导扇区的特征是什么?
 
-从tools/sign.c的代码来看。  
+1.从tools/sign.c的代码来看。  
 ```
 char buf[512];
-memset(buf, 0, sizeof(buf));   //把buf初始化为全零
+memset(buf, 0, sizeof(buf));   // 把buf初始化为全零
 FILE *ifp = fopen(argv[1], "rb");
 int size = fread(buf, 1, st.st_size, ifp);
-if (size != st.st_size) {      //检查buf的大小是否为512字节
+if (size != st.st_size) {      // 检查buf的大小是否为512字节
      fprintf(stderr, "read '%s' error, size is %d.\n", argv[1], size);
      return -1;
 }
 fclose(ifp);
-buf[510] = 0x55;   //把第510个字节赋值为0x55
-buf[511] = 0xAA;   //把第511个字节赋值为0xAA
+buf[510] = 0x55;   // 把第510个字节赋值为0x55
+buf[511] = 0xAA;   // 把第511个字节赋值为0xAA
 ```
 一个磁盘主引导扇区的特征是大小只有512字节，多余空间填零，且第510个字节是0x55，第511个字节是0xAA。
 
@@ -167,8 +167,8 @@ buf[511] = 0xAA;   //把第511个字节赋值为0xAA
 
 1 修改 lab1/tools/gdbinit,内容为:
 ```
-set architecture i8086  //设置当前调试的CPU是8086
-target remote :1234     //gdb接连qemu虚拟机
+set architecture i8086  // 设置当前调试的CPU是8086
+target remote :1234     // gdb接连qemu虚拟机
 ```
 
 2 在 lab1目录下，执行
@@ -184,7 +184,7 @@ si
 
 4 在gdb界面下，可通过如下命令来看BIOS的代码
 ```
- x /2i $pc  //显示当前eip处的汇编指令
+ x /2i $pc  // 显示当前eip处的汇编指令
 ```
 
 > 拓展
@@ -205,11 +205,11 @@ si
 1.在tools/gdbinit结尾加上
 
 ```
-    set architecture i8086  //设置当前调试的CPU是8086
-    b *0x7c00  //在0x7c00处设置断点。此地址是bootloader入口点地址，可看boot/bootasm.S的start地址处
-    c          //continue简称，表示继续执行
-    x /5i $pc  //显示当前eip处的汇编指令
-    set architecture i386  //设置当前调试的CPU是80386
+    set architecture i8086  // 设置当前调试的CPU是8086
+    b *0x7c00  // 在0x7c00处设置断点。此地址是bootloader入口点地址，可看boot/bootasm.S的start地址处
+    c          // continue简称，表示继续执行
+    x /5i $pc  // 显示当前eip处的汇编指令
+    set architecture i386  // 设置当前调试的CPU是80386
 ```
 	
 2.在lab1目录下，运行make debug命令便可得到，gdb打印出 ：
@@ -301,146 +301,146 @@ start:
 
 修改控制方向标志寄存器DF=0，使得内存地址从低到高增加，并先将各个寄存器置0
 ```
-.code16                            //CPU启动为16位模式                  
-	cli                        //关中断
-	cld                        //清方向标志位
-	xorw %ax, %ax              //置零
-	movw %ax, %ds              //-> 数据段寄存器
-	movw %ax, %es              //-> 附加段寄存器
-	movw %ax, %ss              //-> 堆栈段寄存器
+.code16                            // CPU启动为16位模式                  
+	cli                        // 关中断
+	cld                        // 清方向标志位
+	xorw %ax, %ax              // 置零
+	movw %ax, %ds              // -> 数据段寄存器
+	movw %ax, %es              // -> 附加段寄存器
+	movw %ax, %ss              // -> 堆栈段寄存器
 ```
 
 2.开启A20：通过将键盘控制器上的A20线置于高电位，全部32条地址线可用，可以访问4G的内存空间。
 
-(1).下面的代码打开A20地址线 
-```
+下面的代码打开A20地址线 
+``` 
 seta20.1:                   // 等待8042键盘控制器不忙
-	inb $0x64, %al      // 
-	testb $0x2, %al     //
-	jnz seta20.1        #
+	inb $0x64, %al      // 从0x64端口读入一个字节的数据到al中  
+	testb $0x2, %al     // test指令对al的第2位进行位测试(test指令可作and指令进行，只不过它不会影响操作数）
+	jnz seta20.1        // 如果上面的测试中发现al的第2位为0，就不执行该指令；否则就循环检查。  
 	
-	movb $0xd1, %al     # 发送写8042输出端口的指令
-	outb %al, $0x64     #
+	movb $0xd1, %al     // 将0xd1写入到al中 
+	outb %al, $0x64     // 将al中的数据写入到端口0x64中  
 	
-seta20.1:               # 等待8042键盘控制器不忙
-	inb $0x64, %al      # 
-	testb $0x2, %al     #
-	jnz seta20.1        #
-	
-	movb $0xdf, %al     # 打开A20
-	 outb %al, $0x60     # 
+seta20.2:                   
+        inb $0x64, %al      
+        testb $0x2, %al
+        jnz seta20.2
+
+        movb $0xdf, %al     // 将0xdf写入到al中(即将A20置1)
+        outb %al, $0x60     // 将al中的数据写入到端口0x60中 
 ```
 
-初始化GDT表：一个简单的GDT表和其描述符已经静态储存在引导区中，载入即可
+3.初始化GDT表：一个简单的GDT表和其描述符已经静态储存在引导区中，载入即可:
 ```
-	    lgdt gdtdesc
-```
-
-进入保护模式：通过将cr0寄存器PE位置1便开启了保护模式
-```
-	    movl %cr0, %eax
-	    orl $CR0_PE_ON, %eax
-	    movl %eax, %cr0
+	lgdt gdtdesc     // 将全局描述符表描述符加载到全局描述符表寄存器  
 ```
 
-通过长跳转更新cs的基地址
+4.进入保护模式：通过将cr0寄存器PE位置1便开启了保护模式。
 ```
-	 ljmp $PROT_MODE_CSEG, $protcseg
-	.code32
-	protcseg:
+	movl %cr0, %eax           // 控制寄存器cr0中的数值写入到eax中。
+	orl $CR0_PE_ON, %eax      // 用或运算使得PE位置1
+	movl %eax, %cr0           // eax中修改过的数据写入cr0。
+```
+
+5.通过长跳转更新cs的基地址
+```
+	ljmp $PROT_MODE_CSEG, $protcseg
+	.code32                 // 长跳转到32位代码段 
+	protcseg:               // 初始化保护模式的数据段寄存器      
 ```
 
 设置段寄存器，并建立堆栈
 ```
-	    movw $PROT_MODE_DSEG, %ax
-	    movw %ax, %ds
-	    movw %ax, %es
-	    movw %ax, %fs
-	    movw %ax, %gs
-	    movw %ax, %ss
-	    movl $0x0, %ebp
-	    movl $start, %esp
+	movw $PROT_MODE_DSEG, %ax     // Our data segment selector
+	movw %ax, %ds                 // -> DS: Data Segment
+	movw %ax, %es                 // -> ES: Extra Segment
+	movw %ax, %fs                 // -> FS
+	movw %ax, %gs                 // -> GS
+	movw %ax, %ss                 // -> SS: Stack Segment
+	movl $0x0, %ebp               // 初始化栈底指针
+	movl $start, %esp             // 初始化栈顶指针
 ```
-转到保护模式完成，进入boot主方法
+6.转到保护模式完成后，进入boot主函数   
 ```
-	    call bootmain
-```
+	call bootmain                // 调用bootmain函数。
+``` 
 
 
-## [练习4]
-分析bootloader加载ELF格式的OS的过程。
+## 练习四  
 
-首先看readsect函数，
-`readsect`从设备的第secno扇区读取数据到dst位置
+一、bootloader如何读取硬盘扇区的？
+
+1.首先看bootmain.h文件中的readsect函数，`readsect`从设备的第secno扇区读取数据到dst位置
 ```
 	static void
 	readsect(void *dst, uint32_t secno) {
-	    waitdisk();
+	    waitdisk();                             // 首先等待磁盘就绪
 	
-	    outb(0x1F2, 1);                         // 设置读取扇区的数目为1
-	    outb(0x1F3, secno & 0xFF);
+	    outb(0x1F2, 1);                         // 设置需要读取得参数，即扇区个数count=1
+	    outb(0x1F3, secno & 0xFF);              // 即读取相应的内容到寄存器里面.
 	    outb(0x1F4, (secno >> 8) & 0xFF);
 	    outb(0x1F5, (secno >> 16) & 0xFF);
 	    outb(0x1F6, ((secno >> 24) & 0xF) | 0xE0);
-	        // 上面四条指令联合制定了扇区号
-	        // 在这4个字节线联合构成的32位参数中
-	        //   29-31位强制设为1
-	        //   28位(=0)表示访问"Disk 0"
-	        //   0-27位是28位的偏移量
-	    outb(0x1F7, 0x20);                      // 0x20命令，读取扇区
+	    // 上面四条指令联合制定了扇区号
+	    // 在这4个字节线联合构成的32位参数中
+	    // 29-31位强制设为1
+	    // 28位(=0)表示访问"Disk 0"
+	    // 0-27位是28位的偏移量
+	    outb(0x1F7, 0x20);                      // 发出读取磁盘命令 cmd 0x20 - read sectors
 	
 	    waitdisk();
 
-	    insl(0x1F0, dst, SECTSIZE / 4);         // 读取到dst位置，
-	                                            // 幻数4因为这里以DW为单位
+	    insl(0x1F0, dst, SECTSIZE / 4);         // 把磁盘扇区数据读到指定内存dest中
 	}
 ```
 
-readseg简单包装了readsect，可以从设备读取任意长度的内容。
+2.readseg函数简单包装了readsect函数，可以从设备读取任意长度的内容。
 ```
 	static void
 	readseg(uintptr_t va, uint32_t count, uint32_t offset) {
-	    uintptr_t end_va = va + count;
+	    uintptr_t end_va = va + count;    // 设置结束地址
 	
-	    va -= offset % SECTSIZE;
+	    va -= offset % SECTSIZE;          // 设置块首地址
 	
-	    uint32_t secno = (offset / SECTSIZE) + 1; 
+	    uint32_t secno = (offset / SECTSIZE) + 1;   // 设置需要读取的磁盘的位置
 	    // 加1因为0扇区被引导占用
 	    // ELF文件从1扇区开始
 	
 	    for (; va < end_va; va += SECTSIZE, secno ++) {
-	        readsect((void *)va, secno);
+	    // 继续对虚存va和secno进行自加操作，直到读完所需读的东西为止
+	        readsect((void *)va, secno);   // 磁盘中读取一个整块 存到相应的虚存va中
 	    }
 	}
 ```
+二、分析bootloader是如何加载ELF格式的OS？
 
-在bootmain函数中，
+1.在bootmain函数中，
 ```
 	void
 	bootmain(void) {
 	    // 首先读取ELF的头部
-	    readseg((uintptr_t)ELFHDR, SECTSIZE * 8, 0);
+	    readseg((uintptr_t)ELFHDR, SECTSIZE * 8, 0);  // 调用readseg函数从ELFHDR处读取8个扇区的大小。
 	
-	    // 通过储存在头部的幻数判断是否是合法的ELF文件
+	    // 通过储存在头部的MAGIC判断是否是合法的ELF文件
 	    if (ELFHDR->e_magic != ELF_MAGIC) {
-	        goto bad;
+	        goto bad;  // 加载到错误得操作系统, 则跳转到bad
 	    }
 	
-	    struct proghdr *ph, *eph;
+	    struct proghdr *ph, *eph;	
+	    // 在elf.h中有描述ELF文件应加载到内存什么位置的描述表，
+	    // 先将描述表的头地址存在ph中
+	    // ph = (struct proghdr *)((uintptr_t)ELFHDR + ELFHDR->e_phoff);ph表示ELF段表首地址 
+	    // eph = ph + ELFHDR->e_phnum;eph表示ELF段表末地址
 	
-	    // ELF头部有描述ELF文件应加载到内存什么位置的描述表，
-	    // 先将描述表的头地址存在ph
-	    ph = (struct proghdr *)((uintptr_t)ELFHDR + ELFHDR->e_phoff);
-	    eph = ph + ELFHDR->e_phnum;
-	
-	    // 按照描述表将ELF文件中数据载入内存
+	    // 按照描述表将ELF文件中数据载入相应的虚存p_va程序块中
 	    for (; ph < eph; ph ++) {
 	        readseg(ph->p_va & 0xFFFFFF, ph->p_memsz, ph->p_offset);
 	    }
 	    // ELF文件0x1000位置后面的0xd1ec比特被载入内存0x00100000
 	    // ELF文件0xf000位置后面的0x1d20比特被载入内存0x0010e000
 
-	    // 根据ELF头部储存的入口信息，找到内核的入口
+	    // 根据ELF头部储存的入口信息，找到内核的入口并运行
 	    ((void (*)(void))(ELFHDR->e_entry & 0xFFFFFF))();
 	
 	bad:
@@ -449,6 +449,7 @@ readseg简单包装了readsect，可以从设备读取任意长度的内容。
 	    while (1);
 	}
 ```
+三、总结
 
 
 ## [练习5] 
