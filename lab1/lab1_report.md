@@ -4,6 +4,7 @@
 
 一、操作系统镜像文件 ucore.img 是如何一步一步生成的?(需要比较详细地解释 Makefile 中
 每一条相关命令和命令参数的含义,以及说明命令导致的结果)
+
 1.
 ```
 bin/ucore.img
@@ -165,24 +166,24 @@ buf[511] = 0xAA;   // 把第511个字节赋值为0xAA
 
 一、从 CPU 加电后执行的第一条指令开始,单步跟踪 BIOS 的执行。
 
-1 修改 lab1/tools/gdbinit,内容为:
+1.修改 lab1/tools/gdbinit,内容为:
 ```
 set architecture i8086  // 设置当前调试的CPU是8086
 target remote :1234     // gdb接连qemu虚拟机
 ```
 
-2 在 lab1目录下，执行
+2.在lab1目录下，执行
 ```
 make debug
 ```
 
-3 在看到gdb的调试界面(gdb)后，在gdb调试界面下执行如下命令
+3.在看到gdb的调试界面(gdb)后，在gdb调试界面下执行如下命令
 ```
 si 
 ```
 即可单步跟踪BIOS了。
 
-4 在gdb界面下，可通过如下命令来看BIOS的代码
+4.在gdb界面下，可通过如下命令来看BIOS的代码
 ```
  x /2i $pc  // 显示当前eip处的汇编指令
 ```
@@ -298,7 +299,6 @@ start:
 如何使能和进入保护模式）  
 
 1.首先清理环境：关闭中断，将各个段寄存器重置   
-
 修改控制方向标志寄存器DF=0，使得内存地址从低到高增加，并先将各个寄存器置0
 ```
 .code16                            // CPU启动为16位模式                  
@@ -311,7 +311,6 @@ start:
 ```
 
 2.开启A20：通过将键盘控制器上的A20线置于高电位，全部32条地址线可用，可以访问4G的内存空间。
-
 下面的代码打开A20地址线 
 ``` 
 seta20.1:                   // 等待8042键盘控制器不忙
@@ -349,7 +348,6 @@ seta20.2:
 	.code32                 // 长跳转到32位代码段 
 	protcseg:               // 初始化保护模式的数据段寄存器      
 ```
-
 设置段寄存器，并建立堆栈
 ```
 	movw $PROT_MODE_DSEG, %ax     // Our data segment selector
@@ -361,6 +359,7 @@ seta20.2:
 	movl $0x0, %ebp               // 初始化栈底指针
 	movl $start, %esp             // 初始化栈顶指针
 ```
+
 6.转到保护模式完成后，进入boot主函数   
 ```
 	call bootmain                // 调用bootmain函数。
@@ -413,6 +412,7 @@ seta20.2:
 	    }
 	}
 ```
+
 二、分析bootloader是如何加载ELF格式的OS？
 
 1.在bootmain函数中，
@@ -422,7 +422,7 @@ seta20.2:
 	    // 首先读取ELF的头部
 	    readseg((uintptr_t)ELFHDR, SECTSIZE * 8, 0);  // 调用readseg函数从ELFHDR处读取8个扇区的大小。
 	
-	    // 通过储存在头部的MAGIC判断是否是合法的ELF文件
+	    // 通过储存在头部的e_e_magic判断是否是合法的ELF文件
 	    if (ELFHDR->e_magic != ELF_MAGIC) {
 	        goto bad;  // 加载到错误得操作系统, 则跳转到bad
 	    }
@@ -430,8 +430,9 @@ seta20.2:
 	    struct proghdr *ph, *eph;	
 	    // 在elf.h中有描述ELF文件应加载到内存什么位置的描述表，
 	    // 先将描述表的头地址存在ph中
-	    // ph = (struct proghdr *)((uintptr_t)ELFHDR + ELFHDR->e_phoff);ph表示ELF段表首地址 
-	    // eph = ph + ELFHDR->e_phnum;eph表示ELF段表末地址
+	    
+	    ph = (struct proghdr *)((uintptr_t)ELFHDR + ELFHDR->e_phoff);   // ph表示ELF段表首地址 
+	    eph = ph + ELFHDR->e_phnum;    // eph表示ELF段表末地址
 	
 	    // 按照描述表将ELF文件中数据载入相应的虚存p_va程序块中
 	    for (; ph < eph; ph ++) {
@@ -449,41 +450,49 @@ seta20.2:
 	    while (1);
 	}
 ```
-三、总结
 
+三、总结  
 
-## [练习5] 
-实现函数调用堆栈跟踪函数 
+1.从硬盘中将bin/kernel文件的第一页内容加载到内存地址为0x10000的位置，并把这里强制转换成ELFHDR使用。  
+2.校验e_magic字段，确保这是一个ELF文件。  
+3.读取ELF Header的e_phoff字段，得到Program Header表的起始地址；读取ELF Header的e_phnum字段，得到Program Header表的元素数目。  
+4.遍历Program Header表中的每个元素，并根据偏移量分别把程序段的数据读取到内存中。  
+5.读取完毕，通过ELF Header的e_entry得到内核的入口地址，并跳转到该地址开始执行内核代码。  
+
+## 练习五  
+
+一、实现函数调用堆栈跟踪函数 
 
 ss:ebp指向的堆栈位置储存着caller的ebp，以此为线索可以得到所有使用堆栈的函数ebp。
 ss:ebp+4指向caller调用时的eip，ss:ebp+8等是（可能的）参数。
 
 输出中，堆栈最深一层为
 ```
-	ebp:0x00007bf8 eip:0x00007d68 \
-		args:0x00000000 0x00000000 0x00000000 0x00007c4f
-	    <unknow>: -- 0x00007d67 --
+ ebp:0x00007bf8 eip:0x00007d6e args:0xc031fcfa 0xc08ed88e 0x64e4d08e 0xfa7502a8
+    <unknow>: -- 0x00007d6d --
 ```
-
 其对应的是第一个使用堆栈的函数，bootmain.c中的bootmain。
-bootloader设置的堆栈从0x7c00开始，使用"call bootmain"转入bootmain函数。
-call指令压栈，所以bootmain中ebp为0x7bf8。
+bootloader设置的堆栈从0x7c00开始，使用"call bootmain"转入bootmain函数。call指令压栈，所以bootmain中ebp为0x7bf8。
 
+PS；  
+ebp:0x0007bf8 这意味着kern_init函数的调用者（也就是bootmain函数）没有传递任何输入参数给它。  
+eip:0x00007d6e eip的值是kern_init函数的返回地址，也就是bootmain函数调用kern_init对应的指令的下一条指令的地址。
+args存放的就是boot loader指令的前16个字节。      
 
+## 练习六
 
-## [练习6]
 完善中断初始化和处理
 
-[练习6.1] 中断向量表中一个表项占多少字节？其中哪几位代表中断处理代码的入口？
+一、中断向量表中一个表项占多少字节？其中哪几位代表中断处理代码的入口？
 
 中断向量表一个表项占用8字节，其中2-3字节是段选择子，0-1字节和6-7字节拼成位移，
 两者联合便是中断处理程序的入口地址。
 
-[练习6.2] 请编程完善kern/trap/trap.c中对中断向量表进行初始化的函数idt_init。
+二、请编程完善kern/trap/trap.c中对中断向量表进行初始化的函数idt_init。
 
 见代码
 
-[练习6.3] 请编程完善trap.c中的中断处理函数trap，在对时钟中断进行处理的部分填写trap函数
+三、请编程完善trap.c中的中断处理函数trap，在对时钟中断进行处理的部分填写trap函数
 
 见代码
 
