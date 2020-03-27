@@ -338,3 +338,25 @@ moocos-> make V=
 57 146+1 records out
 58 74923 bytes (75 kB) copied, 0.00356787 s, 21.0 MB/s
 ```
+
+## 练习五
+
+1.查看lab1/kern/debug/kdebug.c文件中print_stackframe函数注释。
+2.按照注释提醒，填补代码:
+```
+uint32_t ebp = read_ebp(), eip = read_eip();  //用read_ebp和read_eip函数分别读取ebp和eip的值
+int i, j;
+for (i = 0; ebp != 0 && i < STACKFRAME_DEPTH && ebp !=0 ; i ++)  //#define STACKFRAME_DEPTH 20 并且检测ebp的值
+{
+    cprintf("ebp:0x%08x eip:0x%08x args:", ebp, eip); 
+    uint32_t *args = (uint32_t *)ebp + 2; //参数的首地址
+    for (j = 0; j < 4; j ++)
+       cprintf("0x%08x ", args[j]); //打印4个参数
+       cprintf("\n");
+       
+    print_debuginfo(eip - 1);  //打印函数信息
+    eip = ((uint32_t *)ebp)[1]; //更新eip
+    ebp = ((uint32_t *)ebp)[0]; //更新ebp
+```
+3.执行make qemu命令，并查看打印结果。  
+
