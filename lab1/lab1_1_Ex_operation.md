@@ -341,7 +341,7 @@ moocos-> make V=
 
 ## 练习五
 
-1.查看lab1/kern/debug/kdebug.c文件中print_stackframe函数注释。
+1.查看lab1/kern/debug/kdebug.c文件中print_stackframe函数注释。  
 2.按照注释提醒，填补代码:
 ```
 uint32_t ebp = read_ebp(), eip = read_eip();  //用read_ebp和read_eip函数分别读取ebp和eip的值
