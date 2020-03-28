@@ -485,12 +485,37 @@ args存放的就是boot loader指令的前16个字节。
 
 一、中断向量表中一个表项占多少字节？其中哪几位代表中断处理代码的入口？
 
-中断向量表一个表项占用8字节，其中2-3字节是段选择子，0-1字节和6-7字节拼成位移，
-两者联合便是中断处理程序的入口地址。
+1.打开lab1/kern/mm/mmu.h文件，找到中断描述符表数据结构gatedesc。
+```
+struct gatedesc {
+    unsigned gd_off_15_0 : 16;        // 低16位是段偏移
+    unsigned gd_ss : 16;              // 段选择子
+    unsigned gd_args : 5;             // # args, 0 for interrupt/trap gates
+    unsigned gd_rsv1 : 3;             // 保留位
+    unsigned gd_type : 4;             // 类型(STS_{TG,IG32,TG32})
+    unsigned gd_s : 1;                // 必须为零 (system)
+    unsigned gd_dpl : 2;              // 描述符(meaning new) privilege level优先级？
+    unsigned gd_p : 1;                // Present
+    unsigned gd_off_31_16 : 16;       // 高16位是段偏移
+};
+```
+中断向量表一个表项占用8字节，其中2-3字节是段选择子，0-1字节和6-7字节拼成位移。  
+通过段选择子去GDT中找到对应的基地址，然后基地址加上偏移量就是中断处理程序的地址。  
 
 二、请编程完善kern/trap/trap.c中对中断向量表进行初始化的函数idt_init。
 
-见代码
+1.补充代码如下：
+```
+    extern uintptr_t __vectors[];      // 声明__vertors[]，保存在vectors.S中的256个中断处理例程的入口地址数组。
+    int i;
+    // 使用SETGATE宏，对IDT中的每一个gatedesc进行初始化
+    for(i = 0 ; i < sizeof(idt) / sizeof(struct gatedesc) ; i++ )  // IDT表项的个数
+    {
+        SETGATE(idt[i],0,GD_KTEXT,__vectors[i],DPL_KERNEL);        // 初始化idt数组
+    }
+    SETGATE(idt[T_SWITCH_TOK],0,GD_KTEXT,__vectors[T_SWITCH_TOK],DPL_USER);        //在这里先把所有的中断都初始化为内核级的中断
+    lidt(&idt_pd);      // 使用lidt指令加载中断描述符表 
+```
 
 三、请编程完善trap.c中的中断处理函数trap，在对时钟中断进行处理的部分填写trap函数
 
