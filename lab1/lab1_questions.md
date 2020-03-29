@@ -1,9 +1,9 @@
-练习一：  
+## 练习一 
 
 一、  
     在Terminal中要进入~/moocos/ucore_lab/labcodes_answer/lab1_result的时候，我先是用cd /home命令，再用ls命令行可以看到moocos,且ls -l 后moocos的权限也有，为什么cd ./moocos命令却无效呢？而未使用cd /home时直接用ls命令却也能看到moocos且cd ./ moocos有效？  
 
-练习六：  
+## 练习六
 
 二、  
 1.在trap.c补充中，首先是声明了一个vectors数组，而vector定义在vector.S中，用来借此指针来跳转到某一个中断处理地点。
