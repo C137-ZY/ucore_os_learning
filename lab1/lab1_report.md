@@ -466,7 +466,7 @@ seta20.2:
 ss:ebp指向的堆栈位置储存着caller的ebp，以此为线索可以得到所有使用堆栈的函数ebp。
 ss:ebp+4指向caller调用时的eip，ss:ebp+8等是（可能的）参数。
 
-输出中，堆栈最深一层为
+1.输出中，堆栈最深一层为
 ```
  ebp:0x00007bf8 eip:0x00007d6e args:0xc031fcfa 0xc08ed88e 0x64e4d08e 0xfa7502a8
     <unknow>: -- 0x00007d6d --
@@ -517,29 +517,101 @@ struct gatedesc {
     lidt(&idt_pd);      // 使用lidt指令加载中断描述符表 
 ```
 
-三、请编程完善trap.c中的中断处理函数trap，在对时钟中断进行处理的部分填写trap函数
+2.执行make debug指令验证。  
 
-见代码
+三、请编程完善trap.c中的中断处理函数trap，在对时钟中断进行处理的部分填写trap函数。  
+
+1.补充代码如下：
+```
+    case IRQ_OFFSET + IRQ_TIMER:
+        //“volatile size_t ticks" from <clok.h>
+        if (++ticks == TICK_NUM) {     // define TICK_NUM = 100
+            ticks= 0;
+            print_ticks();            //用于info的函数
+        }
+        break;
+```
+
+2. 执行make debug指令验证。  
+
+## 练习七(challenge)
+
+一、增加syscall功能，即增加一用户态函数（可执行一特定系统调用：获得时钟计数值），当内核初始完毕后，可从内核态返回到用户态的函数，而用户态的函数又通过系统调用得到内核态的服务。  
+
+1.在kern/init/init.c中用lab1_switch_test函数对用户态和内核态的状态进行测试和info，并用lab1_switch_to_user() 和lab1_switch_to_kernel()这两个函数中的内嵌汇编产生中断信号。
+```
+static void
+lab1_switch_to_user(void) {
+  //LAB1 CHALLENGE 1 : TODO
+  cprintf("1");
+  asm volatile (                              // 内嵌汇编
+      "sub $0x8, %%esp \n"                    
+      "int %0 \n"                             // 产生中断
+      "movl %%ebp, %%esp"                     // 对错误码和中断号进行压栈         
+      :
+      : "i"(T_SWITCH_TOU)
+  );
+  cprintf("1");
+}
+```
+```
+static void
+lab1_switch_to_kernel(void) {
+  //LAB1 CHALLENGE 1 :  TODO
+  asm volatile (
+      "int %0 \n"
+      "movl %%ebp, %%esp" 
+      :
+      : "i"(T_SWITCH_TOK)
+  );
+}
+```
+
+2.在kern/trap/trapentry.S中__alltraps会保存相应的寄存器上下文，然后切换到内核上下文，最后传递trapframe数据*tf给kern/trap/trap.c中的trap函数进行中断处理。
+
+3.trap函数传递trapframe数据tf给trap_dispatch函数，运行其中的case T_SWITCH_TOu和 case T_SWITCH_TOk。
+```
+struct trapframe switchk2u, *switchu2k;    //  先定义两个trapframe声明用于临时trapframe和trapframe指针。
 
 
-## [练习7]
+case T_SWITCH_TOU:                    // T_SWITCH_TOU：中断信号的意义由内核空间跳转到用户空间。
+if(tf->tf_cs != USER_CS){             // 判定tf的cs类别是不是用户cs
+switchk2u = *tf;                      // 获取此时的trapframe
+switchk2u.tf_cs = USER_CS;               
+switchk2u.tf_ds = switchk2u.tf_es = switchk2u.tf_ss = USER_DS;       // 更新cs、ds、es、ss
+switchk2u.tf_esp = (uint32_t)tf + sizeof(struct trapframe) - 8;      // esp的首地址在trapframe末尾偏移8字节
+switchk2u.tf_eflags |= FL_IOPL_MASK;                                 // 更新eflags（特权级）
+*((uint32_t *)tf - 1) = (uint32_t)&switchk2u;                        // 用((uint32_t *)tf - 1)指针存放堆栈中的返回地址
+}
+break;
+case T_SWITCH_TOK:
+if (tf->tf_cs != KERNEL_CS) {
+tf->tf_cs = KERNEL_CS;
+tf->tf_ds = tf->tf_es = KERNEL_DS;
+tf->tf_eflags &= ~FL_IOPL_MASK;                                      // 一个是|=，一个是&=。
+switchu2k = (struct trapframe *)(tf->tf_esp - (sizeof(struct trapframe) - 8));  // switchu2k指向esp，esp
+memmove(switchu2k, tf, sizeof(struct trapframe) - 8);                             
+// 用memmove函数将tf中trapframe除最后8个字节的内容copy给switchu2k
+*((uint32_t *)tf - 1) = (uint32_t)switchu2k;       // 用((uint32_t *)tf - 1)指针存放堆栈中的返回地址   
+}
+break;
+```
+二、用键盘实现用户模式内核模式切换。具体目标是:“键盘输入3时切换到用户模式,键盘输入0时切换到内核模式”。基本思路是借鉴软中断(syscall功能)的代码,并且把trap.c中软中断处理的设置语句拿过来。  
 
-增加syscall功能，即增加一用户态函数（可执行一特定系统调用：获得时钟计数值），
-当内核初始完毕后，可从内核态返回到用户态的函数，而用户态的函数又通过系统调用得到内核态的服务
-
-在idt_init中，将用户态调用SWITCH_TOK中断的权限打开。
+1.在idt_init中，将用户态调用SWITCH_TOK中断的权限打开。  
+```
 	SETGATE(idt[T_SWITCH_TOK], 1, KERNEL_CS, __vectors[T_SWITCH_TOK], 3);
+```
 
-在trap_dispatch中，将iret时会从堆栈弹出的段寄存器进行修改
-	对TO User
+2.在trap_dispatch中，将iret时会从堆栈弹出的段寄存器进行修改。  
+TO User
 ```
 	    tf->tf_cs = USER_CS;
 	    tf->tf_ds = USER_DS;
 	    tf->tf_es = USER_DS;
 	    tf->tf_ss = USER_DS;
 ```
-	对TO Kernel
-
+TO Kernel
 ```
 	    tf->tf_cs = KERNEL_CS;
 	    tf->tf_ds = KERNEL_DS;
